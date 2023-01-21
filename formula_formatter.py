@@ -3,39 +3,25 @@
 from syntax import *
 
 class FormulaFormatter:
-    def format(self, formula):
+    def format(self, formula, top_level=True):
         if type(formula) == Literal:
-            return self.format_literal(formula)
+            return ('¬' if formula.negated else '') + formula.name
         elif type(formula) == And:
-            return self.format_and(formula)
+            content = '∧'.join(self.format(child, False) for child in formula.children)
+            return content if top_level else '(%s)' % content
         elif type(formula) == Or:
-            return self.format_or(formula)
+            content = '∨'.join(self.format(child, False) for child in formula.children)
+            return content if top_level else '(%s)' % content
         elif type(formula) == Negation:
-            return self.format_negation(formula)
+            return '¬' + self.format(formula.child, False)
         elif type(formula) == Implication:
-            return self.format_implication(formula)
+            content = self.format(formula.lhs, False) + '=>' + self.format(formula.rhs, False)
+            return content if top_level else '(%s)' % content 
         elif type(formula) == Equivalence:
-            return self.format_equivalence(formula)
+            content = self.format(formula.lhs, False) + '<=>' + self.format(formula.rhs, False)
+            return content if top_level else '(%s)' % content
         else:
             raise SyntaxError("unknown formula type")
-
-    def format_literal(self, literal):
-        return ('¬' if literal.negated else '') + literal.name
-
-    def format_and(self, and_formula):
-        return '(' + '∧'.join(self.format(child) for child in and_formula.children) + ')'
-
-    def format_or(self, or_formula):
-        return '(' + '∨'.join(self.format(child) for child in or_formula.children) + ')'
-    
-    def format_negation(self, negation_formula):
-        return '¬' + self.format(negation_formula.child)
-
-    def format_implication(self, implication):
-        return '(' + self.format(implication.lhs) + '=>' + self.format(implication.rhs)
-
-    def format_equivalence(self, equivalence):
-        return '(' + self.format(implication.lhs) + '<=>' + self.format(implication.rhs) + ')'
 
 
 if __name__ == '__main__':
