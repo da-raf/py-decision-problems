@@ -3,6 +3,12 @@ class Literal:
         self.name = name
         self.negated = negated
 
+    def __hash__(self):
+        return hash((self.name, self.negated))
+
+    def __eq__(self, other):
+        return self.name == other.name and self.negated == other.negated
+
 class And:
     def __init__(self, children):
         self.children = children
