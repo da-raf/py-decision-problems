@@ -1,9 +1,15 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
 from syntax import *
 
 # transfrom formula to negative normal form
 def to_NNF(formula, negated=False):
+    """
+    get corresponding formula in negative-normal-form
+
+    >>> formatter.format(to_NNF(formula))
+    '¬x_1∨((α∧¬β)∨(¬α∧β))'
+    """
     if type(formula) == Literal:
         if not negated:
             return Literal(formula.name, formula.negated)
@@ -30,8 +36,19 @@ def to_NNF(formula, negated=False):
     else:
         raise SyntaxError("unsupported formula type")
 
-# return all literals that are positive in a formula wrt to the given assignment
 def pos(assignment, formula, is_nnf=False):
+    """
+    get a set of literals, which is positive wrt. to the given assignment in the given formula
+
+    >>> ass = get_assignment(get_atoms(formula))(α=True, β=False, x_1=True)
+    >>> sorted([formatter.format(pos_lit) for pos_lit in pos(ass, formula)])
+    ['¬β', 'α']
+    >>> doublelit_formula = And([Literal('x'), Literal('x')])
+    >>> doublelit_ass = get_assignment(get_atoms(doublelit_formula))(x=True)
+    >>> [formatter.format(pos_lit) for pos_lit in pos(doublelit_ass, doublelit_formula)]
+    ['x']
+    """
+
     if not is_nnf:
         formula = to_NNF(formula)
 
@@ -49,6 +66,13 @@ def pos(assignment, formula, is_nnf=False):
 
 # evaluate formula on a specific assignment
 def eval_formula(assignment, formula):
+    """
+    evaluate a given formula wrt. the given assignment
+
+    >>> eval_formula(get_assignment(get_atoms(formula))(α=True, β=False, x_1=True), formula)
+    True
+    """
+
     if type(formula) == Literal:
         return getattr(assignment, formula.name) != formula.negated
     elif type(formula) == And:
@@ -69,6 +93,12 @@ def eval_formula(assignment, formula):
 
 # get all atoms of a formula
 def get_atoms(formula, res=None):
+    """
+    get a set of the atoms in the given formula
+
+    >>> get_atoms(formula) == {'α', 'β', 'x_1'}
+    True
+    """
     if res is None:
         res = set()
 
@@ -95,7 +125,7 @@ def get_assignment(atoms):
 
 # get all possible assignments of atoms in a formula
 def get_all_assignments(formula):
-    atoms = get_atoms(formula)
+    atoms = sorted(get_atoms(formula))
 
     # construct a namedtuple-based type for Assignments
     # dicts could not be used in sets
@@ -115,6 +145,13 @@ import copy
 
 # get all assignments to atoms of a formula, which evaluate it to true
 def get_satisfying_assignments(formula, is_nnf=False, all_assignments=None):
+    """
+    get a set of all assignments, which satisfy the given formula
+
+    >>> get_satisfying_assignments(simple_formula)
+    {Assignment(x=False)}
+    """
+
     if all_assignments is None:
         all_assignments = get_all_assignments(formula)
     if not is_nnf:
@@ -137,10 +174,35 @@ def get_satisfying_assignments(formula, is_nnf=False, all_assignments=None):
 
 # check, if a formula is satisfiable
 def is_satisfiable(formula):
+    """
+    check if there exists a satisfying assignment for the given formula
+
+    >>> is_satisfiable(simple_formula)
+    True
+    """
+
     return bool(get_satisfying_assignments(formula))
+
+def is_valid(formula):
+    """
+    check if formula is satisfied by all possible assignments
+
+    >>> is_valid(Or([Literal('x'), Literal('x', negated=True)]))
+    True
+    >>> is_valid(Equivalence(Or([And([Literal('a', negated=True), Literal('b', negated=True), Literal('h')]), And([Negation(And([Literal('a', negated=True), Literal('b', negated=True)])), Or([And([Literal('a', negated=True), Literal('g')]), And([Literal('a'), Literal('f')])])])]), Or([And([Literal('a'), Literal('f')]), And([Literal('a', negated=True), Or([And([Literal('b'), Literal('g')]), And([Literal('b', negated=True), Literal('h')])])])])))
+    True
+    """
+    return not is_satisfiable(Negation(formula))
 
 # transform a formula to disjunctive normal form
 def to_DNF(formula):
+    """
+    convert given formula to disjunctive normal form
+
+    >>> formatter.format(to_DNF(formula))
+    '(x_1∧¬α∧β)∨(x_1∧α∧¬β)∨(¬x_1∧α∧¬β)∨(¬x_1∧¬α∧¬β)∨(¬x_1∧¬α∧β)∨(¬x_1∧α∧β)'
+    """
+
     satisfying_assignments = get_satisfying_assignments(formula)
 
     return Or([And([Literal(name, negated=(not getattr(assignment, name)))
@@ -149,37 +211,124 @@ def to_DNF(formula):
 
 # check equivalence of two formulas
 def are_equivalent(formula1, formula2):
+    """
+    check if the given formulas are equivalent
+
+    >>> are_equivalent(Negation(Literal('x')), simple_formula)
+    True
+    """
+
     return get_satisfying_assignments(formula1) == get_satisfying_assignments(formula2)
 
-if __name__ == '__main__':
-    from formula_formatter import *
+def _onesided_tseitsin_int(formula, helper_var_name, helper_idx, res, cur_helper):
+    if type(formula) == Literal:
+        res.children.append(Implication(cur_helper, Literal(formula.name, formula.negated)))
+        return helper_idx
+    elif type(formula) == Or:
+        children = []
+        for child in formula.children:
+            if type(child) == Literal:
+                children.append(Literal(child.name, child.negated))
+            else:
+                children.append(Literal(helper_var_name % helper_idx))
+                helper_idx += 1
 
+        res.children.append(Implication(cur_helper, Or(children)))
+        for (child, child_formula) in zip(children, formula.children):
+            if type(child_formula) != Literal:
+                helper_idx = _onesided_tseitsin_int(child_formula, helper_var_name, helper_idx, res, child)
+        return helper_idx
+    elif type(formula) == And:
+        children = []
+        for child in formula.children:
+            if type(child) == Literal:
+                children.append(Literal(child.name, child.negated))
+            else:
+                children.append(Literal(helper_var_name % helper_idx))
+                helper_idx += 1
+
+        res.children.append(Implication(cur_helper, And(children)))
+        for (child, child_formula) in zip(children, formula.children):
+            if type(child_formula) != Literal:
+                helper_idx = _onesided_tseitsin_int(child_formula, helper_var_name, helper_idx, res, child)
+        return helper_idx
+    elif type(formula) == Negation:
+        if type(formula.child) == Literal:
+            child = Literal(child.name, child.negated)
+        else:
+            child = Literal(helper_var_name % helper_idx)
+            helper_idx += 1
+
+        res.children.append(Implication(cur_helper, Literal(child.name, negated=True)))
+        if type(formula.child) != Literal:
+            helper_idx = _onesided_tseitsin_int(formula.child, helper_var_name, helper_idx, res, child)
+        return helper_idx
+    elif type(formula) == Implication:
+        if type(formula.lhs) == Literal:
+            lhs_child = Literal(formula.lhs.name, formula.lhs.negated)
+        else:
+            lhs_child = Literal(helper_var_name % helper_idx)
+            helper_idx += 1
+
+        if type(formula.rhs) == Literal:
+            rhs_child = Literal(formula.rhs.name, formula.rhs.negated)
+        else:
+            rhs_child = Literal(helper_var_name % helper_idx)
+            helper_idx += 1
+
+        res.children.append(Implication(cur_helper, Implication(lhs_child, rhs_child)))
+        if type(formula.lhs) != Literal:
+            helper_idx = _onesided_tseitsin_int(formula.lhs, helper_var_name, helper_idx, res, lhs_child)
+        if type(formula.rhs) != Literal:
+            helper_idx = _onesided_tseitsin_int(formula.rhs, helper_var_name, helper_idx, res, rhs_child)
+        return helper_idx
+    elif type(formula) == Equivalence:
+        if type(formula.lhs) == Literal:
+            lhs_child = Literal(formula.lhs.name, formula.lhs.negated)
+        else:
+            lhs_child = Literal(helper_var_name % helper_idx)
+            helper_idx += 1
+
+        if type(formula.rhs) == Literal:
+            rhs_child = Literal(formula.rhs.name, formula.rhs.negated)
+        else:
+            rhs_child = Literal(helper_var_name % helper_idx)
+            helper_idx += 1
+
+        res.children.append(Implication(cur_helper, Equivalence(lhs_child, rhs_child)))
+        if type(formula.lhs) != Literal:
+            helper_idx = _onesided_tseitsin_int(formula.lhs, helper_var_name, helper_idx, res, lhs_child)
+        if type(formula.rhs) != Literal:
+            helper_idx = _onesided_tseitsin_int(formula.rhs, helper_var_name, helper_idx, res, rhs_child)
+        return helper_idx
+
+    return helper_idx
+    
+def onesided_tseitsin(formula, helper_var_name='x_%d'):
+    """
+    convert formula to onesided Tseitsin encoding
+    """
+
+    res = And([])
+
+    child = Literal(helper_var_name % 0)
+    res.children.append(child)
+    _onesided_tseitsin_int(formula, helper_var_name, 1, res, child)
+
+    return res
+
+if __name__ == '__main__':
+    import doctest
+    from formula_formatter import *
     formatter = FormulaFormatter()
 
+    # make formulas available to doctests
     formula = Implication(Literal('x_1'), Negation(And([Or([Literal('α', True), Literal('β')]), Or([Literal('α'), Literal('β', True)])])))
-    print('formula: %s' % formatter.format(formula))
-
-    nnf_formula = to_NNF(formula)
-    print('NNF-form: %s' % formatter.format(nnf_formula))
-
-    Assignment = get_assignment(get_atoms(formula))
-    ass = Assignment(α=True, β=False, x_1=True)
-    print('assignment: %s' % str(ass))
-    print('pos(assignment, formula): %s' % str([formatter.format(pos_lit) for pos_lit in pos(ass, nnf_formula)]))
-    print('result: %s' % str(eval_formula(ass, formula)))
-
-    print('atoms: %s' % str(get_atoms(formula)))
-
-    dnf_formula = to_DNF(formula)
-    print('DNF-form: %s' % formatter.format(dnf_formula))
-
     simple_formula = Implication(Literal('x'), Negation(Literal('x')))
-    print('formula %s is satisfiable: %s' % (formatter.format(simple_formula), str(is_satisfiable(simple_formula))))
-    print('satisfying assignments: %s' % str(get_satisfying_assignments(simple_formula)))
-    print('equivalent to ¬x? %s' % str(are_equivalent(Negation(Literal('x')), simple_formula)))
 
-    double_check_formula = And([Literal('x'), Literal('x')])
-    DCFAssignment = get_assignment(get_atoms(double_check_formula))
-    ass = DCFAssignment(x=True)
-    print('double reporting of positive literals? α=%s ∧ φ=%s => pos(φ)=%s' % (str(ass), formatter.format(double_check_formula), {formatter.format(literal) for literal in pos(ass, double_check_formula)}))
+    doctest.testmod()
+    tte = onesided_tseitsin(formula, 't_%d')
+    print(formatter.format(tte))
+    print(get_satisfying_assignments(formula))
+    print(get_satisfying_assignments(tte))
 
