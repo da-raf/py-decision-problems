@@ -278,12 +278,17 @@ def _tseitsin_toplevel(connector, helper_name_format, formula):
     substituter = _tseitsin_substitute(formula, helper_name_format, helper_idx)
     res.children.append(substituter)
 
-    return _tseitsin_child(connector, helper_name_format, formula, substituter, helper_idx, res)
+    if type(formula) != Literal:
+        _tseitsin_child(connector, helper_name_format, formula, substituter, helper_idx, res)
+
+    return res
 
 def onesided_tseitsin(formula, helper_name_format='x_%d'):
     """
     convert formula to onesided Tseitsin encoding
 
+    >>> formatter.format(onesided_tseitsin(Literal('a')))
+    'a'
     >>> formatter.format(onesided_tseitsin(formula, helper_name_format='t_%d'))
     't_0∧(t_0=>(x_1=>t_1))∧(t_1=>¬t_2)∧(t_2=>(t_3∧t_4))∧(t_3=>(¬α∨β))∧(t_4=>(α∨¬β))'
     """
