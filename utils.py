@@ -220,72 +220,83 @@ def are_equivalent(formula1, formula2):
 
     return get_satisfying_assignments(formula1) == get_satisfying_assignments(formula2)
 
-def _tseitsin_substitute(child, helper_var_name, helper_idx):
-    if type(child) == Literal:
-        return Literal(child.name, child.negated)
-    else:
-        return Literal(helper_var_name % next(helper_idx))
-
-def _onesided_tseitsin_child(formula, helper_var_name, helper_idx, res, cur_helper):
+def _tseitsin_substitute(formula, helper_name_format, helper_idx):
     if type(formula) == Literal:
-        res.children.append(Implication(cur_helper, Literal(formula.name, formula.negated)))
+        return Literal(formula.name, formula.negated)
+    else:
+        return Literal(helper_name_format % next(helper_idx))
+
+def _tseitsin_child(connector, helper_name_format, formula, substituter, helper_idx, res):
+    if type(formula) == Literal:
+        res.children.append(connector(substituter, Literal(formula.name, formula.negated)))
     elif type(formula) == Or:
-        children = [_tseitsin_substitute(child, helper_var_name, helper_idx) for child in formula.children]
+        children_substituters = [_tseitsin_substitute(child, helper_name_format, helper_idx) for child in formula.children]
 
-        res.children.append(Implication(cur_helper, Or(children)))
-        for (child, child_formula) in zip(children, formula.children):
+        res.children.append(connector(substituter, Or(children_substituters)))
+        for (child_substituter, child_formula) in zip(children_substituters, formula.children):
             if type(child_formula) != Literal:
-                _onesided_tseitsin_child(child_formula, helper_var_name, helper_idx, res, child)
+                _tseitsin_child(connector, helper_name_format, child_formula, child_substituter, helper_idx, res)
     elif type(formula) == And:
-        children = [_tseitsin_substitute(child, helper_var_name, helper_idx) for child in formula.children]
+        children_substituters = [_tseitsin_substitute(child, helper_name_format, helper_idx) for child in formula.children]
 
-        res.children.append(Implication(cur_helper, And(children)))
-        for (child, child_formula) in zip(children, formula.children):
+        res.children.append(connector(substituter, And(children_substituters)))
+        for (child_substituter, child_formula) in zip(children_substituters, formula.children):
             if type(child_formula) != Literal:
-                _onesided_tseitsin_child(child_formula, helper_var_name, helper_idx, res, child)
+                _tseitsin_child(connector, helper_name_format, child_formula, child_substituter, helper_idx, res)
     elif type(formula) == Negation:
-        child = _tseitsin_substitute(formula.child, helper_var_name, helper_idx)
+        child_substituter = _tseitsin_substitute(formula.child, helper_name_format, helper_idx)
 
-        res.children.append(Implication(cur_helper, Literal(child.name, negated=True)))
+        res.children.append(connector(substituter, Literal(child_substituter.name, negated=True)))
         if type(formula.child) != Literal:
-            _onesided_tseitsin_child(formula.child, helper_var_name, helper_idx, res, child)
+            _tseitsin_child(connector, helper_name_format, formula.child, child_substituter, helper_idx, res)
     elif type(formula) == Implication:
-        lhs_child = _tseitsin_substitute(formula.lhs, helper_var_name, helper_idx)
-        rhs_child = _tseitsin_substitute(formula.rhs, helper_var_name, helper_idx)
+        lhs_substituter = _tseitsin_substitute(formula.lhs, helper_name_format, helper_idx)
+        rhs_substituter = _tseitsin_substitute(formula.rhs, helper_name_format, helper_idx)
 
-        res.children.append(Implication(cur_helper, Implication(lhs_child, rhs_child)))
+        res.children.append(connector(substituter, Implication(lhs_substituter, rhs_substituter)))
         if type(formula.lhs) != Literal:
-            _onesided_tseitsin_child(formula.lhs, helper_var_name, helper_idx, res, lhs_child)
+            _tseitsin_child(connector, helper_name_format, formula.lhs, lhs_substituter, helper_idx, res)
         if type(formula.rhs) != Literal:
-            _onesided_tseitsin_child(formula.rhs, helper_var_name, helper_idx, res, rhs_child)
+            _tseitsin_child(connector, helper_name_format, formula.rhs, rhs_substituter, helper_idx, res)
     elif type(formula) == Equivalence:
-        lhs_child = _tseitsin_substitute(formula.lhs, helper_var_name, helper_idx)
-        rhs_child = _tseitsin_substitute(formula.rhs, helper_var_name, helper_idx)
+        lhs_substituter = _tseitsin_substitute(formula.lhs, helper_name_format, helper_idx)
+        rhs_substituter = _tseitsin_substitute(formula.rhs, helper_name_format, helper_idx)
 
-        res.children.append(Implication(cur_helper, Equivalence(lhs_child, rhs_child)))
+        res.children.append(connector(substituter, Equivalence(lhs_substituter, rhs_substituter)))
         if type(formula.lhs) != Literal:
-            _onesided_tseitsin_child(formula.lhs, helper_var_name, helper_idx, res, lhs_child)
+            _tseitsin_child(connector, helper_name_format, formula.lhs, lhs_substituter, helper_idx, res)
         if type(formula.rhs) != Literal:
-            _onesided_tseitsin_child(formula.rhs, helper_var_name, helper_idx, res, rhs_child)
+            _tseitsin_child(connector, helper_name_format, formula.rhs, rhs_substituter, helper_idx, res)
 
     return res
 
-def onesided_tseitsin(formula, helper_var_name='x_%d'):
-    """
-    convert formula to onesided Tseitsin encoding
-
-    >>> formatter.format(onesided_tseitsin(formula, helper_var_name='t_%d'))
-    't_0∧(t_0=>(x_1=>t_1))∧(t_1=>¬t_2)∧(t_2=>(t_3∧t_4))∧(t_3=>(¬α∨β))∧(t_4=>(α∨¬β))'
-    """
-
+def _tseitsin_toplevel(connector, helper_name_format, formula):
     res = And([])
 
     import itertools
     helper_idx = itertools.count()
-    child = Literal(helper_var_name % next(helper_idx))
-    res.children.append(child)
+    substituter = _tseitsin_substitute(formula, helper_name_format, helper_idx)
+    res.children.append(substituter)
 
-    return _onesided_tseitsin_child(formula, helper_var_name, helper_idx, res, child)
+    return _tseitsin_child(connector, helper_name_format, formula, substituter, helper_idx, res)
+
+def onesided_tseitsin(formula, helper_name_format='x_%d'):
+    """
+    convert formula to onesided Tseitsin encoding
+
+    >>> formatter.format(onesided_tseitsin(formula, helper_name_format='t_%d'))
+    't_0∧(t_0=>(x_1=>t_1))∧(t_1=>¬t_2)∧(t_2=>(t_3∧t_4))∧(t_3=>(¬α∨β))∧(t_4=>(α∨¬β))'
+    """
+    return _tseitsin_toplevel(Implication, helper_name_format, formula)
+
+def tseitsin(formula, helper_name_format='x_%d'):
+    """
+    convert formula to Tseitsin encoding
+
+    >>> formatter.format(tseitsin(formula, helper_name_format='t_%d'))
+    't_0∧(t_0<=>(x_1=>t_1))∧(t_1<=>¬t_2)∧(t_2<=>(t_3∧t_4))∧(t_3<=>(¬α∨β))∧(t_4<=>(α∨¬β))'
+    """
+    return _tseitsin_toplevel(Equivalence, helper_name_format, formula)
 
 
 if __name__ == '__main__':
