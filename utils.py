@@ -179,6 +179,10 @@ def is_satisfiable(formula):
 
     >>> is_satisfiable(simple_formula)
     True
+    >>> is_satisfiable(And([Literal('x'), Literal('x', negated=True)]))
+    False
+    >>> is_satisfiable(And([equal_formula1, Negation(equal_formula2)]))
+    False
     """
 
     return bool(get_satisfying_assignments(formula))
@@ -187,10 +191,14 @@ def is_valid(formula):
     """
     check if formula is satisfied by all possible assignments
 
+    >>> is_valid(Literal('x'))
+    False
     >>> is_valid(Or([Literal('x'), Literal('x', negated=True)]))
     True
-    >>> is_valid(Equivalence(Or([And([Literal('a', negated=True), Literal('b', negated=True), Literal('h')]), And([Negation(And([Literal('a', negated=True), Literal('b', negated=True)])), Or([And([Literal('a', negated=True), Literal('g')]), And([Literal('a'), Literal('f')])])])]), Or([And([Literal('a'), Literal('f')]), And([Literal('a', negated=True), Or([And([Literal('b'), Literal('g')]), And([Literal('b', negated=True), Literal('h')])])])])))
+    >>> is_valid(Equivalence(equal_formula1, equal_formula2))
     True
+    >>> is_valid(Equivalence(Or([equal_formula1, Literal('a')]), equal_formula2))
+    False
     """
     return not is_satisfiable(Negation(formula))
 
@@ -214,7 +222,7 @@ def are_equivalent(formula1, formula2):
     """
     check if the given formulas are equivalent
 
-    >>> are_equivalent(Negation(Literal('x')), simple_formula)
+    >>> are_equivalent(simple_formula, simple_formula_equivalent)
     True
     """
 
@@ -312,6 +320,10 @@ if __name__ == '__main__':
     # make formulas available to doctests
     formula = Implication(Literal('x_1'), Negation(And([Or([Literal('α', True), Literal('β')]), Or([Literal('α'), Literal('β', True)])])))
     simple_formula = Implication(Literal('x'), Negation(Literal('x')))
+    simple_formula_equivalent = Negation(Literal('x'))
+
+    equal_formula1 = Or([And([Literal('a', negated=True), Literal('b', negated=True), Literal('h')]), And([Negation(And([Literal('a', negated=True), Literal('b', negated=True)])), Or([And([Literal('a', negated=True), Literal('g')]), And([Literal('a'), Literal('f')])])])])
+    equal_formula2 = Or([And([Literal('a'), Literal('f')]), And([Literal('a', negated=True), Or([And([Literal('b'), Literal('g')]), And([Literal('b', negated=True), Literal('h')])])])])
 
     doctest.testmod()
 
