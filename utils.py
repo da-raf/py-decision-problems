@@ -40,11 +40,11 @@ def pos(assignment, formula, is_nnf=False):
     """
     get a set of literals, which is positive wrt. to the given assignment in the given formula
 
-    >>> ass = get_assignment(get_atoms(formula))(α=True, β=False, x_1=True)
+    >>> ass = get_assignment_type(formula)(α=True, β=False, x_1=True)
     >>> sorted([formatter.format(pos_lit) for pos_lit in pos(ass, formula)])
     ['¬β', 'α']
     >>> doublelit_formula = And([Literal('x'), Literal('x')])
-    >>> doublelit_ass = get_assignment(get_atoms(doublelit_formula))(x=True)
+    >>> doublelit_ass = get_assignment_type(doublelit_formula)(x=True)
     >>> [formatter.format(pos_lit) for pos_lit in pos(doublelit_ass, doublelit_formula)]
     ['x']
     """
@@ -69,7 +69,7 @@ def eval_formula(assignment, formula):
     """
     evaluate a given formula wrt. the given assignment
 
-    >>> eval_formula(get_assignment(get_atoms(formula))(α=True, β=False, x_1=True), formula)
+    >>> eval_formula(get_assignment_type(formula)(α=True, β=False, x_1=True), formula)
     True
     """
 
@@ -120,7 +120,12 @@ def get_atoms(formula, res=None):
 from collections import namedtuple
 
 # immutable (and hashable) type to represent assignments
-def get_assignment(atoms):
+def get_assignment_type(obj):
+    if type(obj) in {Literal, And, Or, Implication, Equivalence}:
+        atoms = get_atoms(obj)
+    else:
+        atoms = obj
+
     return namedtuple('Assignment', atoms, defaults=(None,)*len(atoms))
 
 # get all possible assignments of atoms in a formula
@@ -129,7 +134,7 @@ def get_all_assignments(formula):
 
     # construct a namedtuple-based type for Assignments
     # dicts could not be used in sets
-    Assignment = get_assignment(atoms)
+    Assignment = get_assignment_type(atoms)
     res = {Assignment()}
 
     for atom in atoms:
@@ -310,6 +315,54 @@ def tseitsin(formula, helper_name_format='x_%d'):
     't_0∧(t_0<=>(x_1=>t_1))∧(t_1<=>¬t_2)∧(t_2<=>(t_3∧t_4))∧(t_3<=>(¬α∨β))∧(t_4<=>(α∨¬β))'
     """
     return _tseitsin_toplevel(Equivalence, helper_name_format, formula)
+
+def convert_assignments(asss, new_ass_type):
+    """
+    map assignments of variables with the same name from one assignment type to another
+
+    If not all values of the destination type will get assigned, the namedtuple-type needs to define defaults.
+
+    >>> convert_assignments({namedtuple('Assignment', ['x', 'y'])(True, False)}, namedtuple('Assignment', ['x', 'z'], defaults=(None,)*2))
+    {Assignment(x=True, z=None)}
+    """
+
+    if not asss:
+        return set()
+
+    old_ass_type = type(next(iter(asss)))
+    fields_to_copy = set(old_ass_type._fields).intersection(new_ass_type._fields)
+    res = []
+
+    for ass in asss:
+        res.append(new_ass_type(**{field_name:getattr(ass, field_name) for field_name in fields_to_copy}))
+
+    return set(res)
+
+def filter_assignments(asss, constrs):
+    """
+    return only those assignments, which have identical values for all assigned values in an element of 'constrs'. Elements with value 'None' count as unassigned.
+
+    >>> Assg = namedtuple('Assignment', ['x', 'z'], defaults=(None,)*2)
+    >>> filter_assignments({Assg(x=True, z=False), Assg(x=False, z=True), Assg(x=True, z=True)}, [Assg(x=True)])
+    {Assignment(x=True, z=False), Assignment(x=True, z=True)}
+    """
+
+    if not asss or not constrs:
+        return set()
+
+    target_type = type(next(iter(constrs)))
+
+    if target_type != type(next(iter(constrs))):
+        constrs = convert_assignments(constrs, target_type)
+
+    res = set()
+
+    for constr in constrs:
+        for ass in asss:
+            if all(getattr(constr, field_name) == getattr(ass, field_name) for field_name in constr._fields if getattr(constr, field_name) is not None):
+                res.add(ass)
+
+    return res
 
 
 if __name__ == '__main__':
