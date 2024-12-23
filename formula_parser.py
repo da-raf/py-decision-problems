@@ -49,9 +49,11 @@ class FormulaParser:
     >>> FormulaParser().parse("a<=>b=>c∨d∧¬e")
     Equivalence(Literal(a), Implication(Literal(b), Or(Literal(c), And(Literal(d), Negation(Literal(e))))))
 
-    Associativity is left-to-right:
+    Associativity for implications and equivalences is left-to-right:
     >>> FormulaParser().parse("a=>b=>c")
     Implication(Implication(Literal(a), Literal(b)), Literal(c))
+    >>> FormulaParser().parse("a<=>b<=>c")
+    Equivalence(Equivalence(Literal(a), Literal(b)), Literal(c))
 
     Operators can get freely re-defined:
     >>> FormulaParser().parse("a*b+c")
