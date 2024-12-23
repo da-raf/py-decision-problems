@@ -1,5 +1,9 @@
 #!/usr/bin/python
 
+"""
+Creates formulas (their syntax trees) from strings.
+"""
+
 import pyparsing as pp
 import syntax as sx
 import functools
@@ -20,25 +24,41 @@ def and_conv(toks):
     return sx.And(list(toks)) if len(toks) > 1 else toks[0]
 
 def impl_conv(toks):
-    res = toks[0]
-    for tok in toks[1:]:
-        res = sx.Implication(res, tok)
-    return res
+    return functools.reduce(sx.Implication, toks)
 
 def equiv_conv(toks):
-    res = toks[0]
-    for tok in toks[1:]:
-        res = sx.Equivalence(res, tok)
-    return res
-
-def gen_conv(toks):
-    return toks[0]
+    return functools.reduce(sx.Equivalence, toks)
 
 def to_operator(lits):
     return functools.reduce(pp.ParserElement.__or__, map(pp.Literal, lits))
 
 
 class FormulaParser:
+    """
+    Converts a formula from a string into a syntax tree. Currently ASCII-symbols
+    (-/+/*/=>/<=>) and unicode symbols (¬/∧/∨/=>/<=>) are supported as operators.
+
+    >>> FormulaParser().parse("a∧b")
+    And(Literal(a), Literal(b))
+    >>> FormulaParser().parse("a*b")
+    And(Literal(a), Literal(b))
+
+    Operator precedence is negation > conjunction > disjunction > implication > equivalence
+    >>> FormulaParser().parse("¬a∧b∨c=>d<=>e")
+    Equivalence(Implication(Or(And(Negation(Literal(a)), Literal(b)), Literal(c)), Literal(d)), Literal(e))
+    >>> FormulaParser().parse("a<=>b=>c∨d∧¬e")
+    Equivalence(Literal(a), Implication(Literal(b), Or(Literal(c), And(Literal(d), Negation(Literal(e))))))
+
+    Associativity is left-to-right:
+    >>> FormulaParser().parse("a=>b=>c")
+    Implication(Implication(Literal(a), Literal(b)), Literal(c))
+
+    Operators can get freely re-defined:
+    >>> FormulaParser().parse("a*b+c")
+    Or(And(Literal(a), Literal(b)), Literal(c))
+    >>> FormulaParser(or_ops=("*",), and_ops=("+",)).parse("a*b+c")
+    Or(Literal(a), And(Literal(b), Literal(c)))
+    """
     def __init__(self, neg_ops=("¬", "-"), or_ops=("+", "∨"), and_ops=("*", "∧"), impl_ops=("=>",), equiv_ops=("<=>",), open_bracket=("(",), close_bracket=(")",)):
         self.and_op = to_operator(and_ops)
         self.or_op = to_operator(or_ops)
@@ -62,4 +82,10 @@ class FormulaParser:
 
     def parse(self, f):
         return self.formula.parse_string(f)[0]
+
+
+if __name__ == '__main__':
+    import doctest
+
+    doctest.testmod()
 
