@@ -331,12 +331,8 @@ def convert_assignments(asss, new_ass_type):
 
     old_ass_type = type(next(iter(asss)))
     fields_to_copy = set(old_ass_type._fields).intersection(new_ass_type._fields)
-    res = []
 
-    for ass in asss:
-        res.append(new_ass_type(**{field_name:getattr(ass, field_name) for field_name in fields_to_copy}))
-
-    return set(res)
+    return {new_ass_type(**{field_name:getattr(ass, field_name) for field_name in fields_to_copy}) for ass in asss}
 
 def filter_assignments(asss, constrs):
     """
