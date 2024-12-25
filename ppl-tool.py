@@ -15,10 +15,11 @@ if __name__ == '__main__':
     arg_parser.add_argument('--to-dnf', action='store_true', help="convert the formula to disjunctive normal form")
     arg_parser.add_argument('--to-nnf', action='store_true', help="convert the formula to negative normal form")
     arg_parser.add_argument('--to-cnf', action='store_true', help="convert the formula to conjunctive normal form")
+    arg_parser.add_argument('--ascii', action='store_true', help="use only ASCII-characters")
     args = arg_parser.parse_args()
 
     fparser = formula_parser.FormulaParser()
-    fformatter = formula_formatter.FormulaFormatter()
+    fformatter = formula_formatter.get_formatter(unicode=(False if args.ascii else True))
 
     f = fparser.parse(args.formula)
 
