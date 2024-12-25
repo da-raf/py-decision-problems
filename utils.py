@@ -7,8 +7,8 @@ def to_NNF(formula, negated=False):
     """
     get corresponding formula in negative-normal-form
 
-    >>> formatter.format(to_NNF(formula))
-    '¬x_1∨((α∧¬β)∨(¬α∧β))'
+    >>> to_NNF(formula)
+    Or(Literal(!x_1), Or(And(Literal(α), Literal(!β)), And(Literal(!α), Literal(β))))
     """
     if type(formula) == Literal:
         if not negated:
@@ -41,12 +41,13 @@ def pos(assignment, formula, is_nnf=False):
     get a set of literals, which is positive wrt. to the given assignment in the given formula
 
     >>> ass = get_assignment_type(formula)(α=True, β=False, x_1=True)
-    >>> sorted([formatter.format(pos_lit) for pos_lit in pos(ass, formula)])
-    ['¬β', 'α']
+    >>> pos(ass, formula) == {Literal('α'), Literal('β', negated=True)}
+    True
+
     >>> doublelit_formula = And([Literal('x'), Literal('x')])
     >>> doublelit_ass = get_assignment_type(doublelit_formula)(x=True)
-    >>> [formatter.format(pos_lit) for pos_lit in pos(doublelit_ass, doublelit_formula)]
-    ['x']
+    >>> pos(doublelit_ass, doublelit_formula) == {Literal('x')}
+    True
     """
 
     if not is_nnf:
@@ -242,8 +243,8 @@ def to_DNF(formula):
     """
     convert given formula to disjunctive normal form
 
-    >>> formatter.format(to_DNF(formula))
-    '(x_1∧¬α∧β)∨(x_1∧α∧¬β)∨(¬x_1∧α∧¬β)∨(¬x_1∧¬α∧¬β)∨(¬x_1∧¬α∧β)∨(¬x_1∧α∧β)'
+    >>> to_DNF(formula)
+    Or(And(Literal(x_1), Literal(!α), Literal(β)), And(Literal(x_1), Literal(α), Literal(!β)), And(Literal(!x_1), Literal(α), Literal(!β)), And(Literal(!x_1), Literal(!α), Literal(!β)), And(Literal(!x_1), Literal(!α), Literal(β)), And(Literal(!x_1), Literal(α), Literal(β)))
     """
 
     satisfying_assignments = get_satisfying_assignments(formula)
@@ -343,10 +344,10 @@ def onesided_tseitsin(formula, helper_name_format='x_%d'):
     """
     convert formula to onesided Tseitsin encoding
 
-    >>> formatter.format(onesided_tseitsin(Literal('a')))
-    'a'
-    >>> formatter.format(onesided_tseitsin(formula, helper_name_format='t_%d'))
-    't_0∧(t_0=>(x_1=>t_1))∧(t_1=>¬t_2)∧(t_2=>(t_3∧t_4))∧(t_3=>(¬α∨β))∧(t_4=>(α∨¬β))'
+    >>> onesided_tseitsin(Literal('a'))
+    And(Literal(a))
+    >>> onesided_tseitsin(formula, helper_name_format='t_%d')
+    And(Literal(t_0), Implication(Literal(t_0), Implication(Literal(x_1), Literal(t_1))), Implication(Literal(t_1), Literal(!t_2)), Implication(Literal(t_2), And(Literal(t_3), Literal(t_4))), Implication(Literal(t_3), Or(Literal(!α), Literal(β))), Implication(Literal(t_4), Or(Literal(α), Literal(!β))))
     """
     return _tseitsin_toplevel(Implication, helper_name_format, formula)
 
@@ -354,8 +355,8 @@ def tseitsin(formula, helper_name_format='x_%d'):
     """
     convert formula to Tseitsin encoding
 
-    >>> formatter.format(tseitsin(formula, helper_name_format='t_%d'))
-    't_0∧(t_0<=>(x_1=>t_1))∧(t_1<=>¬t_2)∧(t_2<=>(t_3∧t_4))∧(t_3<=>(¬α∨β))∧(t_4<=>(α∨¬β))'
+    >>> tseitsin(formula, helper_name_format='t_%d')
+    And(Literal(t_0), Equivalence(Literal(t_0), Implication(Literal(x_1), Literal(t_1))), Equivalence(Literal(t_1), Literal(!t_2)), Equivalence(Literal(t_2), And(Literal(t_3), Literal(t_4))), Equivalence(Literal(t_3), Or(Literal(!α), Literal(β))), Equivalence(Literal(t_4), Or(Literal(α), Literal(!β))))
     """
     return _tseitsin_toplevel(Equivalence, helper_name_format, formula)
 
@@ -406,8 +407,6 @@ def filter_assignments(asss, constrs):
 
 if __name__ == '__main__':
     import doctest
-    from formula_formatter import *
-    formatter = FormulaFormatter()
 
     # make formulas available to doctests
     formula = Implication(Literal('x_1'), Negation(And([Or([Literal('α', True), Literal('β')]), Or([Literal('α'), Literal('β', True)])])))
