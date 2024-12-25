@@ -37,15 +37,15 @@ class FormulaFormatter:
 
 class AsciiFormulaFormatter:
     """
-    formats formula using ascii characters +/-/*/=>/<=>
+    formats formula using ascii characters ~/+/*/=>/<=>
 
     >>> AsciiFormulaFormatter().format(formula)
-    'x_1=>(-(((-a)+b)*(a+(-b))))'
+    'x_1=>(~(((~a)+b)*(a+(~b))))'
     """
 
     def format(self, formula, top_level=True):
         if type(formula) == Literal:
-            content = ('-' if formula.negated else '') + formula.name
+            content = ('~' if formula.negated else '') + formula.name
             return content if top_level or not formula.negated else '(%s)' % content
         elif type(formula) == And:
             content = '*'.join(self.format(child, False) for child in formula.children)
@@ -54,7 +54,7 @@ class AsciiFormulaFormatter:
             content = '+'.join(self.format(child, False) for child in formula.children)
             return content if top_level else '(%s)' % content
         elif type(formula) == Negation:
-            content = '-' + self.format(formula.child, False)
+            content = '~' + self.format(formula.child, False)
             return content if top_level else '(%s)' % content
         elif type(formula) == Implication:
             content = self.format(formula.lhs, False) + '=>' + self.format(formula.rhs, False)

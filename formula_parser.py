@@ -36,7 +36,7 @@ def to_operator(lits):
 class FormulaParser:
     """
     Converts a formula from a string into a syntax tree. Currently ASCII-symbols
-    (-/+/*/=>/<=>) and unicode symbols (¬/∧/∨/=>/<=>) are supported as operators.
+    (~/+/*/=>/<=>) and unicode symbols (¬/∧/∨/=>/<=>) are supported as operators.
 
     >>> FormulaParser().parse("a∧b")
     And(Literal(a), Literal(b))
@@ -61,7 +61,7 @@ class FormulaParser:
     >>> FormulaParser(or_ops=("*",), and_ops=("+",)).parse("a*b+c")
     Or(Literal(a), And(Literal(b), Literal(c)))
     """
-    def __init__(self, neg_ops=("¬", "-"), or_ops=("+", "∨"), and_ops=("*", "∧"), impl_ops=("=>",), equiv_ops=("<=>",), open_bracket=("(",), close_bracket=(")",)):
+    def __init__(self, neg_ops=("¬", "~"), or_ops=("+", "∨"), and_ops=("*", "∧"), impl_ops=("=>",), equiv_ops=("<=>",), open_bracket=("(",), close_bracket=(")",)):
         self.and_op = to_operator(and_ops)
         self.or_op = to_operator(or_ops)
         self.neg_op = to_operator(neg_ops)
