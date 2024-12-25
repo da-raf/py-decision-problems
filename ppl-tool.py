@@ -14,6 +14,7 @@ if __name__ == '__main__':
     arg_parser.add_argument('--is-valid', action='store_true', help="check if the formula is valid")
     arg_parser.add_argument('--to-dnf', action='store_true', help="convert the formula to disjunctive normal form")
     arg_parser.add_argument('--to-nnf', action='store_true', help="convert the formula to negative normal form")
+    arg_parser.add_argument('--to-cnf', action='store_true', help="convert the formula to conjunctive normal form")
     args = arg_parser.parse_args()
 
     fparser = formula_parser.FormulaParser()
@@ -34,6 +35,9 @@ if __name__ == '__main__':
 
     if args.to_dnf or args.all:
         print(f"DNF: {fformatter.format(utils.to_DNF(f))}")
+
+    if args.to_cnf or args.all:
+        print(f"CNF: {fformatter.format(utils.to_CNF(f))}")
 
     if args.equivalent_to:
         other_f = fparser.parse(args.equivalent_to)

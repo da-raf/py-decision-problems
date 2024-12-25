@@ -177,6 +177,36 @@ def get_satisfying_assignments(formula, is_nnf=False, all_assignments=None):
     else:
         raise SyntaxError("formula is not in NNF")
 
+# get all assignments to atoms of a formula, which evaluate it to False
+def get_violating_assignments(formula, is_nnf=False, all_assignments=None):
+    """
+    get a set of all assignments, which do not satisfy the given formula
+
+    >>> get_violating_assignments(simple_formula)
+    {Assignment(x=True)}
+    """
+
+    if all_assignments is None:
+        all_assignments = get_all_assignments(formula)
+    if not is_nnf:
+        formula = to_NNF(formula)
+
+    if isinstance(formula, Literal):
+        return {ass for ass in all_assignments if getattr(ass, formula.name) == formula.negated}
+    elif isinstance(formula, Or):
+        res = copy.copy(all_assignments)
+        for child in formula.children:
+            res &= get_violating_assignments(child, True, res)
+        return res
+    elif isinstance(formula, And):
+        res = set()
+        for child in formula.children:
+            res |= get_violating_assignments(child, True, all_assignments)
+        return res
+    else:
+        raise SyntaxError("formula is not in NNF")
+
+
 # check, if a formula is satisfiable
 def is_satisfiable(formula):
     """
@@ -205,7 +235,7 @@ def is_valid(formula):
     >>> is_valid(Equivalence(Or([equal_formula1, Literal('a')]), equal_formula2))
     False
     """
-    return not is_satisfiable(Negation(formula))
+    return not bool(get_violating_assignments(formula))
 
 # transform a formula to disjunctive normal form
 def to_DNF(formula):
@@ -221,6 +251,19 @@ def to_DNF(formula):
     return Or([And([Literal(name, negated=(not getattr(assignment, name)))
                     for name in assignment._fields])
                for assignment in satisfying_assignments])
+
+def to_CNF(formula):
+    """
+    convert given formula to conjunctive normal form
+
+    >>> to_CNF(formula)
+    And(Or(Literal(!x_1), Literal(α), Literal(β)), Or(Literal(!x_1), Literal(!α), Literal(!β)))
+    """
+    violating_assignments = get_violating_assignments(formula)
+
+    return And([Or([Literal(name, negated=(getattr(assignment, name)))
+                    for name in assignment._fields])
+                for assignment in violating_assignments])
 
 # check equivalence of two formulas
 def are_equivalent(formula1, formula2):
