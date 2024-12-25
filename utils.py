@@ -239,62 +239,62 @@ def _tseitsin_substitute(formula, helper_name_format, helper_idx):
     else:
         return Literal(helper_name_format % next(helper_idx))
 
-def _tseitsin_child(connector, helper_name_format, formula, substituter, helper_idx, res):
+def _tseitsin_child(connector, helper_name_format, formula, substituter, helper_idx, clauses):
     if type(formula) == Literal:
-        res.children.append(connector(substituter, Literal(formula.name, formula.negated)))
+        clauses.append(connector(substituter, Literal(formula.name, formula.negated)))
     elif type(formula) == Or:
         children_substituters = [_tseitsin_substitute(child, helper_name_format, helper_idx) for child in formula.children]
 
-        res.children.append(connector(substituter, Or(children_substituters)))
+        clauses.append(connector(substituter, Or(children_substituters)))
         for (child_substituter, child_formula) in zip(children_substituters, formula.children):
             if type(child_formula) != Literal:
-                _tseitsin_child(connector, helper_name_format, child_formula, child_substituter, helper_idx, res)
+                _tseitsin_child(connector, helper_name_format, child_formula, child_substituter, helper_idx, clauses)
     elif type(formula) == And:
         children_substituters = [_tseitsin_substitute(child, helper_name_format, helper_idx) for child in formula.children]
 
-        res.children.append(connector(substituter, And(children_substituters)))
+        clauses.append(connector(substituter, And(children_substituters)))
         for (child_substituter, child_formula) in zip(children_substituters, formula.children):
             if type(child_formula) != Literal:
-                _tseitsin_child(connector, helper_name_format, child_formula, child_substituter, helper_idx, res)
+                _tseitsin_child(connector, helper_name_format, child_formula, child_substituter, helper_idx, clauses)
     elif type(formula) == Negation:
         child_substituter = _tseitsin_substitute(formula.child, helper_name_format, helper_idx)
 
-        res.children.append(connector(substituter, Literal(child_substituter.name, negated=True)))
+        clauses.append(connector(substituter, Literal(child_substituter.name, negated=True)))
         if type(formula.child) != Literal:
-            _tseitsin_child(connector, helper_name_format, formula.child, child_substituter, helper_idx, res)
+            _tseitsin_child(connector, helper_name_format, formula.child, child_substituter, helper_idx, clauses)
     elif type(formula) == Implication:
         lhs_substituter = _tseitsin_substitute(formula.lhs, helper_name_format, helper_idx)
         rhs_substituter = _tseitsin_substitute(formula.rhs, helper_name_format, helper_idx)
 
-        res.children.append(connector(substituter, Implication(lhs_substituter, rhs_substituter)))
+        clauses.append(connector(substituter, Implication(lhs_substituter, rhs_substituter)))
         if type(formula.lhs) != Literal:
-            _tseitsin_child(connector, helper_name_format, formula.lhs, lhs_substituter, helper_idx, res)
+            _tseitsin_child(connector, helper_name_format, formula.lhs, lhs_substituter, helper_idx, clauses)
         if type(formula.rhs) != Literal:
-            _tseitsin_child(connector, helper_name_format, formula.rhs, rhs_substituter, helper_idx, res)
+            _tseitsin_child(connector, helper_name_format, formula.rhs, rhs_substituter, helper_idx, clauses)
     elif type(formula) == Equivalence:
         lhs_substituter = _tseitsin_substitute(formula.lhs, helper_name_format, helper_idx)
         rhs_substituter = _tseitsin_substitute(formula.rhs, helper_name_format, helper_idx)
 
-        res.children.append(connector(substituter, Equivalence(lhs_substituter, rhs_substituter)))
+        clauses.append(connector(substituter, Equivalence(lhs_substituter, rhs_substituter)))
         if type(formula.lhs) != Literal:
-            _tseitsin_child(connector, helper_name_format, formula.lhs, lhs_substituter, helper_idx, res)
+            _tseitsin_child(connector, helper_name_format, formula.lhs, lhs_substituter, helper_idx, clauses)
         if type(formula.rhs) != Literal:
-            _tseitsin_child(connector, helper_name_format, formula.rhs, rhs_substituter, helper_idx, res)
+            _tseitsin_child(connector, helper_name_format, formula.rhs, rhs_substituter, helper_idx, clauses)
 
-    return res
+    return clauses
 
 def _tseitsin_toplevel(connector, helper_name_format, formula):
-    res = And([])
+    clauses = []
 
     import itertools
     helper_idx = itertools.count()
     substituter = _tseitsin_substitute(formula, helper_name_format, helper_idx)
-    res.children.append(substituter)
+    clauses.append(substituter)
 
     if type(formula) != Literal:
-        _tseitsin_child(connector, helper_name_format, formula, substituter, helper_idx, res)
+        _tseitsin_child(connector, helper_name_format, formula, substituter, helper_idx, clauses)
 
-    return res
+    return And(clauses)
 
 def onesided_tseitsin(formula, helper_name_format='x_%d'):
     """
